@@ -1,17 +1,67 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import KwikNote from './components/KwikNote'
+import { supabase } from './supabase-client'
 
 const App = () => {
   const [notes, setNotes] = useState([])
-  const addNote = () => {
-    setNotes([...notes, { id: Date.now(), text: 'Click edit to write your note...' }])
+  useEffect(() => {
+    fetchNotes()
+  }, [])
+  const fetchNotes = async () => {
+    try {
 
+      let { data, error } = await supabase.from('notes').select('*')
+      if (error) {
+        throw error
+      }
+      setNotes(data || [])
+
+    } catch (error) {
+      console.log('Error fetching notes: ', error.message)
+    }
   }
-  const updateNote = (id, newText)=>{
-    setNotes((preNote)=> preNote.map((note)=>(note.id === id) ? {...note,text: newText} : note))
+  // Add Note
+  const addNote = async () => {
+    try {
+
+      const { data, error } = await supabase.from('notes').insert([
+        { text: 'Click edit to write your note...' }]).select()
+      if (error) {
+        throw error;
+      }
+      setNotes([...notes, ...data])
+    } catch (error) {
+      console.log('Error in adding notes: ', error.message)
+    }
   }
-  const deleteNote = (id)=>{
-    setNotes(notes.filter((note)=>note.id !== id))
+
+  // Update Note
+  const updateNote = async (id, newText) => {
+    try {
+
+      const { data, error } = await supabase.from('notes').update({ text: newText }).eq('id', id).select()
+      if (error) {
+        throw error
+      }
+      setNotes((preNote) => preNote.map((note) => (note.id === id) ? { ...note, text: newText } : note))
+
+    } catch (error) {
+      console.log('Error in updating notes: ', error.message)
+    }
+  }
+  const deleteNote = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', id)
+        if(error){
+          throw error
+        }
+        setNotes(notes.filter((note) => note.id !== id))
+    } catch (error) {
+      console.log('Error in deleting notes: ', error.message)
+    }
   }
   return (
     <>
@@ -26,7 +76,7 @@ const App = () => {
       <div className='flex flex-wrap'>
         {
           notes.map((note) => {
-            return <KwikNote key={note.id} id={note.id} text={note.text} onUpdate={updateNote} onDelete={()=>deleteNote(note.id)} />
+            return <KwikNote key={note.id} id={note.id} text={note.text} onUpdate={updateNote} onDelete={() => deleteNote(note.id)} />
           })
         }
       </div>
